@@ -74,7 +74,8 @@ Settings, following the system appearance:
 ## Download
 
 Grab the latest `Kove-<version>.dmg` from [Releases](https://github.com/ValenscoA/Kove/releases),
-open it and drag **Kove** into **Applications**.
+open it and drag **Kove** into **Applications**. The image holds a universal binary
+(Apple silicon + Intel) for macOS 14 and later, with a SHA-256 file next to it.
 
 The image is ad-hoc signed, so the first launch is blocked by Gatekeeper — right-click
 the app → **Open**, or clear the quarantine flag once:
