@@ -12,9 +12,9 @@
 </div>
 
 A black pill fused to the top edge of the notched display that expands into a small
-panel showing what's playing in Apple Music — or how much Command Code usage you
-have left. It never takes focus, it's click-through everywhere except the pill, and
-it steps aside for full-screen apps.
+panel showing what's playing — Apple Music, Spotify, or any player Kove knows how to
+talk to — or how much Command Code usage you have left. It never takes focus, it's
+click-through everywhere except the pill, and it steps aside for full-screen apps.
 
 <br>
 
@@ -31,11 +31,14 @@ notched display. Clicks land on the pill and nowhere else, so the invisible part
 the panel can never swallow a click meant for the app underneath. It joins all
 spaces, ignores app switches, and raises no Dock icon.
 
-**Apple Music, live.** Artwork, title, artist, album, a scrubbable progress bar and
-transport controls. Music's own `com.apple.Music.playerInfo` notification triggers
-an immediate Apple Event, so pressing play puts the island on screen in a fraction
-of a second; a lazy poll (1.8–2.5 s) remains as a backstop. A paused track keeps the
-pill on the notch so playback can be resumed from it.
+**Any player, live.** Artwork, title, artist, album, a scrubbable progress bar and
+transport controls. Players are adapters behind one `MediaPlayer` protocol — Apple
+Music and Spotify today; adding another is a single file. Whichever player is
+*playing* wins, a paused one keeps the pill on the notch so playback can be resumed
+from it, and each player's own change notification (`com.apple.Music.playerInfo`,
+`com.spotify.client.PlaybackStateChanged`) triggers an immediate read, so pressing
+play puts the island on screen in a fraction of a second. A lazy poll (1.8–2.5 s)
+stays as the backstop.
 
 **Command Code usage.** Session (5 h) and weekly credit windows, credits remaining,
 reset countdowns, request and success counts — fetched from the Command Code billing
@@ -106,9 +109,11 @@ for Automation access.
 
 ## Permissions
 
-Kove reads and controls Apple Music through Apple Events, so macOS asks once for
-Automation access — *"Kove wants to control Music"*. Reading Command Code usage is
-plain HTTPS and needs no permission.
+Kove reads and controls players through Apple Events, so macOS asks once per player —
+*"Kove wants to control Spotify"* — the first time that player is scripted. Reading
+Command Code usage is plain HTTPS and needs no permission. If a player is refused,
+the island says so instead of going quiet; grant it later in System Settings ›
+Privacy & Security › Automation.
 
 ## How it works
 
@@ -118,9 +123,11 @@ plain HTTPS and needs no permission.
 - **Geometry** (`Island/IslandController.swift`) comes from the notch: the gap
   between `auxiliaryTopLeftArea` and `auxiliaryTopRightArea`, plus `safeAreaInsets.top`
   for its height. Without a notch the island falls back to a floating pill.
-- **Music** (`Services/MusicService.swift`) polls `osascript` out of process so a
-  stalled Music.app can never block the UI, interpolates the playback position
-  locally between polls, and downsamples artwork off the main thread.
+- **Players** (`Services/Media/`) — one adapter per app (`AppleMusicPlayer`,
+  `SpotifyPlayer`) behind the `MediaPlayer` protocol, plus `MediaService`, which polls
+  `osascript` out of process so a stalled player can never block the UI, picks the
+  active player, interpolates the position between polls, and downsamples artwork off
+  the main thread.
 - **Usage** (`Services/CommandCodeUsageService.swift`) talks to
   `api.commandcode.ai` with the key from `COMMAND_CODE_API_KEY` or
   `~/.commandcode/auth.json` (written by `cmd login`).
@@ -135,7 +142,7 @@ defaults domain:
 
 | Key | Meaning |
 | --- | --- |
-| `enabledIslandSources` | Which sources may appear (`music`, `commandCode`) |
+| `enabledIslandSources` | Which sources may appear (`music` = now playing, `commandCode`) |
 | `islandMode` | Which source is currently on screen |
 | `hideOverFullScreen` | Step aside for full-screen apps |
 
@@ -145,6 +152,7 @@ Debug builds accept a few extra launch arguments while iterating:
 .build/debug/Kove --expand                       # open the island at launch
 .build/debug/Kove --settings [--dark|--light]    # open Settings, forcing an appearance
 .build/debug/Kove --render-settings out.png      # render Settings offscreen to a PNG
+.build/debug/Kove --media-probe                  # print what each player reports
 ```
 
 ## Project layout
@@ -161,7 +169,9 @@ Sources/Kove/
 │   ├── IslandView, CollapsedView, ExpandedView, CommandCodeUsageView
 │   ├── Components.swift, Theme.swift  shared views, shape, colours
 ├── Settings/                          preferences window + live island preview
-└── Services/                          Music (Apple Events), Command Code (HTTPS)
+└── Services/
+    ├── Media/                         MediaPlayer adapters (Music, Spotify) + MediaService
+    └── CommandCodeUsageService.swift  usage over HTTPS
 Tools/                                 icon and banner generators
 Resources/                             Info.plist, AppIcon.icns, menu bar glyph
 ```

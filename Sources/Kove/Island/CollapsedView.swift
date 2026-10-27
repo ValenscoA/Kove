@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CollapsedView: View {
-    @ObservedObject var music: MusicService
+    @ObservedObject var media: MediaService
     @ObservedObject var usage: CommandCodeUsageService
     let mode: IslandMode
     let notchWidth: CGFloat
@@ -45,10 +45,10 @@ struct CollapsedView: View {
 
     private var artwork: some View {
         ZStack {
-            if music.hasTrack {
-                ArtworkThumb(image: music.artwork, size: 20, corner: 5.5)
+            if media.hasTrack {
+                ArtworkThumb(image: media.artwork, size: 20, corner: 5.5)
                     .overlay(alignment: .bottomTrailing) {
-                        if music.isPlaying {
+                        if media.isPlaying {
                             Circle()
                                 .fill(Color.white)
                                 .frame(width: 5, height: 5)

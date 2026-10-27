@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ExpandedView: View {
-    @ObservedObject var music: MusicService
+    @ObservedObject var media: MediaService
     @ObservedObject var usage: CommandCodeUsageService
     let mode: IslandMode
     /// Sources enabled in the menu bar; the switcher only offers these.
@@ -17,7 +17,7 @@ struct ExpandedView: View {
             Group {
                 switch mode {
                 case .music:
-                    MediaSection(music: music)
+                    MediaSection(media: media)
                 case .commandCode:
                     CommandCodeUsageView(usage: usage)
                 }
@@ -46,7 +46,7 @@ struct ExpandedView: View {
     private var headerTitle: String {
         switch mode {
         case .music:
-            music.hasTrack ? "NOW PLAYING" : "MUSIC"
+            media.hasTrack ? "NOW PLAYING" : "MUSIC"
         case .commandCode:
             "COMMAND CODE"
         }
@@ -84,13 +84,13 @@ struct ExpandedView: View {
 }
 
 struct MediaSection: View {
-    @ObservedObject var music: MusicService
+    @ObservedObject var media: MediaService
 
     var body: some View {
-        if let track = music.track {
+        if let track = media.track {
             VStack(spacing: 0) {
                 HStack(alignment: .center, spacing: 14) {
-                    ArtworkThumb(image: music.artwork, size: 96, corner: 14)
+                    ArtworkThumb(image: media.artwork, size: 96, corner: 14)
                         .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 4)
 
                     VStack(alignment: .leading, spacing: 0) {
@@ -112,12 +112,12 @@ struct MediaSection: View {
                             .lineLimit(1)
                             .padding(.top, 1)
 
-                        TimelineView(.periodic(from: .now, by: music.isPlaying ? 0.5 : 5)) { _ in
+                        TimelineView(.periodic(from: .now, by: media.isPlaying ? 0.5 : 5)) { _ in
                             ProgressRow(
-                                progress: music.progress,
-                                elapsed: music.position,
+                                progress: media.progress,
+                                elapsed: media.position,
                                 duration: track.duration,
-                                onSeek: { music.seek(to: $0) }
+                                onSeek: { media.seek(to: $0) }
                             )
                         }
                         .padding(.top, 11)
@@ -127,48 +127,53 @@ struct MediaSection: View {
 
                 HStack(spacing: 7) {
                     IconButton(systemName: "backward.fill", diameter: 24, iconSize: 11) {
-                        music.previous()
+                        media.previous()
                     }
                     IconButton(
-                        systemName: music.isPlaying ? "pause.fill" : "play.fill",
+                        systemName: media.isPlaying ? "pause.fill" : "play.fill",
                         diameter: 30,
                         iconSize: 13,
                         filled: true
                     ) {
-                        music.togglePlayPause()
+                        media.togglePlayPause()
                     }
                     IconButton(systemName: "forward.fill", diameter: 24, iconSize: 11) {
-                        music.next()
+                        media.next()
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 10)
             }
         } else {
-            EmptyMediaView(music: music)
+            EmptyMediaView(media: media)
         }
     }
 }
 
 struct EmptyMediaView: View {
-    @ObservedObject var music: MusicService
+    @ObservedObject var media: MediaService
+
+    private var emptyMessage: String {
+        if media.permissionDenied {
+            let player = media.deniedPlayerName ?? "your player"
+            return "Allow Kove to control \(player) in System Settings › Privacy & Security › Automation."
+        }
+        if media.isPlayerRunning {
+            return "Start a track in Apple Music, Spotify, or any app that publishes a media session."
+        }
+        return "Open a player and start a track — Kove shows whatever is playing."
+    }
 
     var body: some View {
         HStack(spacing: 14) {
             ArtworkThumb(image: nil, size: 96, corner: 14)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(music.permissionDenied ? "Music access needed" : "Nothing playing")
+                Text(media.permissionDenied ? "Access needed" : "Nothing playing")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.primary)
 
-                Text(
-                    music.permissionDenied
-                        ? "Allow Kove to control Music in System Settings › Privacy & Security › Automation."
-                        : (music.isMusicRunning
-                            ? "Start a track in Music and it will show up here."
-                            : "Music is not running.")
-                )
+                Text(emptyMessage)
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -177,9 +182,9 @@ struct EmptyMediaView: View {
                 Spacer(minLength: 6)
 
                 Button {
-                    music.openMusic()
+                    media.openPlayer()
                 } label: {
-                    Text("Open Music")
+                    Text("Open Player")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                         .padding(.horizontal, 12)

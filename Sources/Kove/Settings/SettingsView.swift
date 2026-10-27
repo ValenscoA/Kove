@@ -31,7 +31,7 @@ struct SettingsView: View {
                 SettingsRow(
                     symbol: IslandMode.music.symbolName,
                     title: IslandMode.music.title,
-                    subtitle: "Artwork, track details and playback controls.",
+                    subtitle: "Artwork, track details and playback controls, from any player.",
                     isOn: sourceBinding(.music)
                 )
 

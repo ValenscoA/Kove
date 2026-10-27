@@ -2,7 +2,7 @@ import SwiftUI
 
 struct IslandView: View {
     @ObservedObject var controller: IslandController
-    @ObservedObject var music: MusicService
+    @ObservedObject var media: MediaService
     @ObservedObject var usage: CommandCodeUsageService
 
     private var expanded: Bool { controller.isExpanded }
@@ -35,7 +35,7 @@ struct IslandView: View {
         ZStack(alignment: .top) {
             if expanded {
                 ExpandedView(
-                    music: music,
+                    media: media,
                     usage: usage,
                     mode: controller.mode,
                     enabledSources: controller.enabledSources,
@@ -50,7 +50,7 @@ struct IslandView: View {
                 .transition(.opacity)
             } else {
                 CollapsedView(
-                    music: music,
+                    media: media,
                     usage: usage,
                     mode: controller.mode,
                     notchWidth: controller.notchWidth

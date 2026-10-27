@@ -4,7 +4,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private let statusItem: NSStatusItem
     private let onToggle: () -> Void
-    private let onOpenMusic: () -> Void
+    private let onOpenPlayer: () -> Void
     private let onOpenSettings: () -> Void
     private let onQuit: () -> Void
     private let isExpanded: () -> Bool
@@ -14,14 +14,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     init(
         onToggle: @escaping () -> Void,
-        onOpenMusic: @escaping () -> Void,
+        onOpenPlayer: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void,
         onQuit: @escaping () -> Void,
         isExpanded: @escaping () -> Bool,
         canExpand: @escaping () -> Bool
     ) {
         self.onToggle = onToggle
-        self.onOpenMusic = onOpenMusic
+        self.onOpenPlayer = onOpenPlayer
         self.onOpenSettings = onOpenSettings
         self.onQuit = onQuit
         self.isExpanded = isExpanded
@@ -49,9 +49,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         toggleItem.action = #selector(toggleIsland)
         menu.addItem(toggleItem)
 
-        let musicItem = NSMenuItem(title: "Open Music", action: #selector(openMusic), keyEquivalent: "")
-        musicItem.target = self
-        menu.addItem(musicItem)
+        let playerItem = NSMenuItem(title: "Open Player", action: #selector(openPlayer), keyEquivalent: "")
+        playerItem.target = self
+        menu.addItem(playerItem)
 
         menu.addItem(.separator())
 
@@ -95,7 +95,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleIsland() { onToggle() }
-    @objc private func openMusic() { onOpenMusic() }
+    @objc private func openPlayer() { onOpenPlayer() }
     @objc private func openSettings() { onOpenSettings() }
     @objc private func quit() { onQuit() }
 }

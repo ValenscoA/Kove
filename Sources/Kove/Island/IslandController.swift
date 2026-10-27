@@ -8,7 +8,7 @@ enum IslandMode: String, CaseIterable {
     /// Label used by the menu bar submenu.
     var title: String {
         switch self {
-        case .music: return "Music"
+        case .music: return "Now Playing"
         case .commandCode: return "Command Code Usage"
         }
     }
@@ -23,7 +23,7 @@ enum IslandMode: String, CaseIterable {
 
     var helpText: String {
         switch self {
-        case .music: return "Show what's playing"
+        case .music: return "Show what's playing, from any player"
         case .commandCode: return "Show Command Code usage"
         }
     }

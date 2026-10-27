@@ -5,7 +5,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var controller: IslandController!
-    private var music: MusicService!
+    private var media: MediaService!
     private var usage: CommandCodeUsageService!
     private var panel: IslandPanel!
     private var container: IslandContainerView!
@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let quietTicksBeforeShowing = 3
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        music = MusicService()
+        media = MediaService()
         usage = CommandCodeUsageService()
         controller = IslandController(preferences: preferences)
 
@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         container.autoresizingMask = [.width, .height]
 
         let hosting = IslandHostingView(
-            rootView: IslandView(controller: controller, music: music, usage: usage)
+            rootView: IslandView(controller: controller, media: media, usage: usage)
         )
         hosting.sizingOptions = []
         hosting.translatesAutoresizingMaskIntoConstraints = false
@@ -114,7 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        music.start()
+        media.start()
 
         syncServices()
 
@@ -128,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.settle()
             }
 
-        playbackCancellable = music.$isPlaying
+        playbackCancellable = media.$isPlaying
             .removeDuplicates()
             .dropFirst()
             .receive(on: RunLoop.main)
@@ -136,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = StatusItemController(
             onToggle: { [weak self] in self?.controller.toggle() },
-            onOpenMusic: { [weak self] in self?.music.openMusic() },
+            onOpenPlayer: { [weak self] in self?.media.openPlayer() },
             onOpenSettings: { [weak self] in self?.settingsWindow.show() },
             onQuit: { NSApp.terminate(nil) },
             isExpanded: { [weak self] in self?.controller.isExpanded ?? false },
@@ -172,6 +172,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if CommandLine.arguments.contains("--expand") {
                 self.controller.setExpanded(true)
             }
+            if CommandLine.arguments.contains("--media-probe") {
+                self.probeMediaPlayers()
+            }
             if CommandLine.arguments.contains("--demo") {
                 self.usage.stop()
                 self.usage.useDemoSnapshot()
@@ -196,7 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        music.stop()
+        media.stop()
         usage.stop()
         settleTimer?.invalidate()
         watchdogTimer?.invalidate()
@@ -219,6 +222,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: Visibility
 
     #if DEBUG
+    /// Dev helper: prints what each player reports, then exits.
+    /// `Kove --media-probe` — the quickest way to tell a permission problem from a
+    /// player that simply is not playing.
+    private func probeMediaPlayers() {
+        let players: [MediaPlayer] = [AppleMusicPlayer(), SpotifyPlayer()]
+        DispatchQueue.global(qos: .userInitiated).async {
+            for player in players {
+                let running = player.isRunning
+                var line = "\(player.displayName) [\(player.bundleID)] running=\(running)"
+                if running {
+                    switch player.snapshot(timeout: 10) {
+                    case .snapshot(let snapshot):
+                        let track = snapshot.track
+                        line += " state=\(snapshot.state.rawValue)"
+                        line += " title=\(track?.title ?? "-")"
+                        line += " artist=\(track?.artist ?? "-")"
+                        line += " duration=\(track.map { String(format: "%.1f", $0.duration) } ?? "-")"
+                        line += " position=\(String(format: "%.1f", snapshot.position))"
+                        line += " artworkURL=\(track?.artworkURL == nil ? "no" : "yes")"
+                    case .permissionDenied:
+                        line += " permission=denied"
+                    case .failed:
+                        line += " permission=unavailable-or-error"
+                    }
+                }
+                print(line)
+                fflush(stdout)
+            }
+            exit(0)
+        }
+    }
+
     /// Dev helper: renders the settings window offscreen to a PNG so the layout can
     /// be reviewed without opening it. `Kove --render-settings /tmp/out.png`.
     private func renderSettingsMockup() {
@@ -264,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// track stays expandable so playback can be resumed from the island.
     private var canExpandIsland: Bool {
         guard controller.hasEnabledSource else { return false }
-        if controller.mode == .music { return music.hasTrack }
+        if controller.mode == .music { return media.hasTrack }
         return true
     }
 
@@ -325,7 +360,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // still counts as a track: the pill stays put so playback can be resumed
         // from it. Collapse first so playback resumes to the pill instead of an
         // expanded panel the user left open.
-        if !music.hasTrack, controller.mode == .music {
+        if !media.hasTrack, controller.mode == .music {
             cleanTicks = 0
             controller.setExpanded(false)
             hidePanel()
