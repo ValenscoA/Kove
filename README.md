@@ -59,13 +59,17 @@ swift Tools/MakeBanner.swift    # docs/banner.png
 
 ## Screenshots
 
+The collapsed pill, sitting on the notch:
+
+<div align="center">
+  <img src="docs/island-collapsed.png" width="300" alt="The collapsed pill on the notch">
+</div>
+
+Settings, following the system appearance:
+
 | Light | Dark |
 | :---: | :---: |
-| <img src="docs/settings-light.png" width="420"> | <img src="docs/settings-dark.png" width="420"> |
-
-| Collapsed | Expanded |
-| :---: | :---: |
-| <img src="docs/island-collapsed.png" width="300"> | <img src="docs/island-usage.png" width="420"> |
+| <img src="docs/settings-light.png" width="420" alt="Settings in light appearance"> | <img src="docs/settings-dark.png" width="420" alt="Settings in dark appearance"> |
 
 ## Install
 
