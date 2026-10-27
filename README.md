@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/banner.png" alt="Kove — a Dynamic Island for macOS" width="100%">
+  <img src="docs/banner.png" alt="Kove, a Dynamic Island for macOS" width="100%">
 </div>
 
 <div align="center">
@@ -12,14 +12,15 @@
 </div>
 
 A black pill fused to the top edge of the notched display that expands into a small
-panel showing what's playing — Apple Music, Spotify, or any player Kove knows how to
-talk to — or how much Command Code usage you have left. It never takes focus, it's
+panel showing what's playing (Apple Music, Spotify, or any player Kove knows how to
+talk to) or how much Command Code usage you have left. It never takes focus, it's
 click-through everywhere except the pill, and it steps aside for full-screen apps.
 
 <br>
 
 <div align="center">
   <img src="docs/island-usage.png" alt="Kove expanded on the notch, showing Command Code usage" width="620">
+  <p><sub>Usage figures in this screenshot are sample data.</sub></p>
 </div>
 
 <br>
@@ -32,8 +33,8 @@ the panel can never swallow a click meant for the app underneath. It joins all
 spaces, ignores app switches, and raises no Dock icon.
 
 **Any player, live.** Artwork, title, artist, album, a scrubbable progress bar and
-transport controls. Players are adapters behind one `MediaPlayer` protocol — Apple
-Music and Spotify today; adding another is a single file. Whichever player is
+transport controls. Players are adapters behind one `MediaPlayer` protocol: Apple
+Music and Spotify today, and adding another is a single file. Whichever player is
 *playing* wins, a paused one keeps the pill on the notch so playback can be resumed
 from it, and each player's own change notification (`com.apple.Music.playerInfo`,
 `com.spotify.client.PlaybackStateChanged`) triggers an immediate read, so pressing
@@ -41,7 +42,7 @@ play puts the island on screen in a fraction of a second. A lazy poll (1.8–2.5
 stays as the backstop.
 
 **Command Code usage.** Session (5 h) and weekly credit windows, credits remaining,
-reset countdowns, request and success counts — fetched from the Command Code billing
+reset countdowns, request and success counts, fetched from the Command Code billing
 API every 60 s, and only while that source is on screen.
 
 **Yields to full screen.** Detects apps that own the display's top edge, waits out
@@ -49,14 +50,14 @@ space and app-switch animations, and runs a 4 Hz watchdog so a missed notificati
 can't leave the island stranded over a full-screen app. Both behaviours are
 configurable.
 
-**Settings window.** A real preferences window — not a menu — with a live preview of
-the island, source switches, and full-screen behaviour.
+**Settings window.** A real preferences window rather than a menu, with a live preview
+of the island, its source switches, and full-screen behaviour.
 
 **Generated identity.** The app icon, the menu bar glyph and the README banner are
 drawn from code, not hand-exported:
 
 ```sh
-swift Tools/MakeIcon.swift      # Resources/AppIcon.icns + StatusIcon*.png
+swift Tools/MakeIcon.swift      # Resources/AppIcon.icns|.ico + StatusIcon*/TrayIcon*
 swift Tools/MakeBanner.swift    # docs/banner.png
 ```
 
@@ -80,8 +81,8 @@ Grab the latest `Kove-<version>.dmg` from [Releases](https://github.com/Valensco
 open it and drag **Kove** into **Applications**. The image holds a universal binary
 (Apple silicon + Intel) for macOS 14 and later, with a SHA-256 file next to it.
 
-The image is ad-hoc signed, so the first launch is blocked by Gatekeeper — right-click
-the app → **Open**, or clear the quarantine flag once:
+The image is ad-hoc signed, so the first launch is blocked by Gatekeeper. Right-click
+the app and choose **Open**, or clear the quarantine flag once:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Kove.app
@@ -91,8 +92,8 @@ Prefer to build it yourself? See [Install](#install).
 
 ## Install
 
-Requires macOS 14 (Sonoma) or later and the Swift toolchain — Command Line Tools is
-enough, Xcode is not needed.
+Requires macOS 14 (Sonoma) or later and the Swift toolchain. Command Line Tools is
+enough; Xcode is not needed.
 
 ```sh
 git clone https://github.com/ValenscoA/Kove.git
@@ -102,15 +103,15 @@ open build/Kove.app
 ```
 
 Kove runs as a menu bar item with no Dock icon. The menu has **Expand Island**,
-**Open Music**, **Settings…** (⌘,) and **Quit**.
+**Open Player**, **Settings…** (⌘,) and **Quit**.
 
 The app is ad-hoc signed, so rebuilding changes the signature and macOS may ask again
 for Automation access.
 
 ## Permissions
 
-Kove reads and controls players through Apple Events, so macOS asks once per player —
-*"Kove wants to control Spotify"* — the first time that player is scripted. Reading
+Kove reads and controls players through Apple Events, so macOS asks once per player
+(*"Kove wants to control Spotify"*) the first time that player is scripted. Reading
 Command Code usage is plain HTTPS and needs no permission. If a player is refused,
 the island says so instead of going quiet; grant it later in System Settings ›
 Privacy & Security › Automation.
@@ -123,7 +124,7 @@ Privacy & Security › Automation.
 - **Geometry** (`Island/IslandController.swift`) comes from the notch: the gap
   between `auxiliaryTopLeftArea` and `auxiliaryTopRightArea`, plus `safeAreaInsets.top`
   for its height. Without a notch the island falls back to a floating pill.
-- **Players** (`Services/Media/`) — one adapter per app (`AppleMusicPlayer`,
+- **Players** (`Services/Media/`): one adapter per app (`AppleMusicPlayer`,
   `SpotifyPlayer`) behind the `MediaPlayer` protocol, plus `MediaService`, which polls
   `osascript` out of process so a stalled player can never block the UI, picks the
   active player, interpolates the position between polls, and downsamples artwork off
@@ -133,7 +134,7 @@ Privacy & Security › Automation.
   `~/.commandcode/auth.json` (written by `cmd login`).
 - **Visibility** (`AppDelegate.swift`) runs one state machine for show/hide: hiding is
   immediate, showing requires the desktop to stay clear for ~300 ms, and
-  `Services/FullScreenMonitor.swift` completes the picture with window-server queries.
+  `FullScreenMonitor.swift` completes the picture with window-server queries.
 
 ## Configuration
 
@@ -171,6 +172,7 @@ Sources/Kove/
 ├── Settings/                          preferences window + live island preview
 └── Services/
     ├── Media/                         MediaPlayer adapters (Music, Spotify) + MediaService
+    ├── AppleScriptRunner.swift         runs osascript out of process
     └── CommandCodeUsageService.swift  usage over HTTPS
 Tools/                                 icon and banner generators
 Resources/                             Info.plist, AppIcon.icns, menu bar glyph
@@ -206,4 +208,4 @@ black/white tray icons for it.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
