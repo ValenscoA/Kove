@@ -1,53 +1,152 @@
-# Kove
+<div align="center">
+  <img src="docs/banner.png" alt="Kove — a Dynamic Island for macOS" width="100%">
+</div>
 
-A Dynamic Island for macOS: a black pill fused to the top edge of the notched
-display that expands on hover to show what's playing in Apple Music.
+<div align="center">
 
-## Build & run
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)
+![Swift 6](https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-3D7EFF)
+[![build](https://github.com/ValenscoA/Kove/actions/workflows/build.yml/badge.svg)](https://github.com/ValenscoA/Kove/actions/workflows/build.yml)
+
+</div>
+
+A black pill fused to the top edge of the notched display that expands into a small
+panel showing what's playing in Apple Music — or how much Command Code usage you
+have left. It never takes focus, it's click-through everywhere except the pill, and
+it steps aside for full-screen apps.
+
+<br>
+
+<div align="center">
+  <img src="docs/island-usage.png" alt="Kove expanded on the notch, showing Command Code usage" width="620">
+</div>
+
+<br>
+
+## Features
+
+**Notch-native panel.** A borderless `NSPanel` pinned above the menu bar on the
+notched display. Clicks land on the pill and nowhere else, so the invisible part of
+the panel can never swallow a click meant for the app underneath. It joins all
+spaces, ignores app switches, and raises no Dock icon.
+
+**Apple Music, live.** Artwork, title, artist, album, a scrubbable progress bar and
+transport controls. Music's own `com.apple.Music.playerInfo` notification triggers
+an immediate Apple Event, so pressing play puts the island on screen in a fraction
+of a second; a lazy poll (1.8–2.5 s) remains as a backstop. A paused track keeps the
+pill on the notch so playback can be resumed from it.
+
+**Command Code usage.** Session (5 h) and weekly credit windows, credits remaining,
+reset countdowns, request and success counts — fetched from the Command Code billing
+API every 60 s, and only while that source is on screen.
+
+**Yields to full screen.** Detects apps that own the display's top edge, waits out
+space and app-switch animations, and runs a 4 Hz watchdog so a missed notification
+can't leave the island stranded over a full-screen app. Both behaviours are
+configurable.
+
+**Settings window.** A real preferences window — not a menu — with a live preview of
+the island, source switches, and full-screen behaviour.
+
+**Generated identity.** The app icon, the menu bar glyph and the README banner are
+drawn from code, not hand-exported:
 
 ```sh
-./build.sh          # builds build/Kove.app
-open build/Kove.app
-open build/Kove.app --args --settings   # launch straight into the settings window
+swift Tools/MakeIcon.swift      # Resources/AppIcon.icns + StatusIcon*.png
+swift Tools/MakeBanner.swift    # docs/banner.png
 ```
 
-Requires macOS 14+ and the Swift toolchain (Command Line Tools is enough — no Xcode needed).
+## Screenshots
 
-`Kove.app` runs as a menu bar item with no Dock icon. The menu has Expand Island,
-Open Music, Settings… (⌘,), and Quit. Settings opens a real preferences window —
-the app is an accessory, so there is no app menu to hang a Settings item off.
+| Light | Dark |
+| :---: | :---: |
+| <img src="docs/settings-light.png" width="420"> | <img src="docs/settings-dark.png" width="420"> |
+
+| Collapsed | Expanded |
+| :---: | :---: |
+| <img src="docs/island-collapsed.png" width="300"> | <img src="docs/island-usage.png" width="420"> |
+
+## Install
+
+Requires macOS 14 (Sonoma) or later and the Swift toolchain — Command Line Tools is
+enough, Xcode is not needed.
+
+```sh
+git clone https://github.com/ValenscoA/Kove.git
+cd Kove
+./build.sh            # builds build/Kove.app (release, ad-hoc signed)
+open build/Kove.app
+```
+
+Kove runs as a menu bar item with no Dock icon. The menu has **Expand Island**,
+**Open Music**, **Settings…** (⌘,) and **Quit**.
+
+The app is ad-hoc signed, so rebuilding changes the signature and macOS may ask again
+for Automation access.
 
 ## Permissions
 
-Kove controls Apple Music via AppleScript, so macOS asks once for Automation access
-("Kove wants to control Music"). The app is ad-hoc signed, so rebuilding may cause
-that prompt to appear again.
+Kove reads and controls Apple Music through Apple Events, so macOS asks once for
+Automation access — *"Kove wants to control Music"*. Reading Command Code usage is
+plain HTTPS and needs no permission.
 
-## Layout
+## How it works
 
-- `Sources/Kove/Island/` — the panel, hit testing/hover handling, and the SwiftUI views
-- `Sources/Kove/Island/IslandPreferences.swift` — which sources the island may show
-  and the full-screen behaviour, persisted in `UserDefaults`
-- `Sources/Kove/Settings/` — the preferences window and its SwiftUI form
-- `Sources/Kove/Services/MusicService.swift` — Music state polling plus playback controls
-- `Sources/Kove/AppDelegate.swift` — window setup and screen positioning
+- **The panel** (`Island/IslandPanel.swift`, `AppDelegate.swift`) is a non-activating
+  `NSPanel` at `.statusBar` level. `IslandContainerView.hitTest` narrows hit testing
+  to the island's rect, which is why the transparent margin is click-through.
+- **Geometry** (`Island/IslandController.swift`) comes from the notch: the gap
+  between `auxiliaryTopLeftArea` and `auxiliaryTopRightArea`, plus `safeAreaInsets.top`
+  for its height. Without a notch the island falls back to a floating pill.
+- **Music** (`Services/MusicService.swift`) polls `osascript` out of process so a
+  stalled Music.app can never block the UI, interpolates the playback position
+  locally between polls, and downsamples artwork off the main thread.
+- **Usage** (`Services/CommandCodeUsageService.swift`) talks to
+  `api.commandcode.ai` with the key from `COMMAND_CODE_API_KEY` or
+  `~/.commandcode/auth.json` (written by `cmd login`).
+- **Visibility** (`AppDelegate.swift`) runs one state machine for show/hide: hiding is
+  immediate, showing requires the desktop to stay clear for ~300 ms, and
+  `Services/FullScreenMonitor.swift` completes the picture with window-server queries.
 
-Music is polled lazily on a background queue (Apple Events cost ~80 ms per round trip)
-and the playback position is interpolated locally between polls. Music's own
-`com.apple.Music.playerInfo` notification triggers an immediate poll, so pressing
-play shows up on the island in a fraction of a second instead of waiting for the
-next tick.
+## Configuration
 
-## Icon
+Everything user-facing lives in **Settings…**, stored in the `com.kove.island`
+defaults domain:
 
-`Resources/AppIcon.icns` and the menu bar glyph (`Resources/StatusIcon*.png`, a
-template image) are generated, not hand-drawn:
+| Key | Meaning |
+| --- | --- |
+| `enabledIslandSources` | Which sources may appear (`music`, `commandCode`) |
+| `islandMode` | Which source is currently on screen |
+| `hideOverFullScreen` | Step aside for full-screen apps |
+
+Debug builds accept a few extra launch arguments while iterating:
 
 ```sh
-swift Tools/MakeIcon.swift                    # regenerate the shipped assets
-swift Tools/MakeIcon.swift --sheet out.png    # render the design variants
+.build/debug/Kove --expand                       # open the island at launch
+.build/debug/Kove --settings [--dark|--light]    # open Settings, forcing an appearance
+.build/debug/Kove --render-settings out.png      # render Settings offscreen to a PNG
 ```
 
-The mark is a dark squircle with the island pill fused to its top edge and the
-MacBook notch bitten out of it. All geometry lives in `Tools/MakeIcon.swift`, so
-changing the pill's proportions means re-running that script.
+## Project layout
+
+```
+Sources/Kove/
+├── main.swift, AppDelegate.swift      app lifecycle, panel placement, visibility
+├── StatusItemController.swift         menu bar item and its menu
+├── FullScreenMonitor.swift            is a full-screen app covering this display?
+├── Island/
+│   ├── IslandPanel.swift              borderless panel + hit-testing container
+│   ├── IslandController.swift         geometry, expansion state, active source
+│   ├── IslandPreferences.swift        persisted settings
+│   ├── IslandView, CollapsedView, ExpandedView, CommandCodeUsageView
+│   ├── Components.swift, Theme.swift  shared views, shape, colours
+├── Settings/                          preferences window + live island preview
+└── Services/                          Music (Apple Events), Command Code (HTTPS)
+Tools/                                 icon and banner generators
+Resources/                             Info.plist, AppIcon.icns, menu bar glyph
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

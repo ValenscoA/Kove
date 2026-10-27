@@ -166,6 +166,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self else { return }
             self.startWatchdog()
+            #if DEBUG
+            // Screenshot helpers: `Kove --expand` opens the island straight away,
+            // `--dark` forces the dark appearance for window captures.
+            if CommandLine.arguments.contains("--expand") {
+                self.controller.setExpanded(true)
+            }
+            if CommandLine.arguments.contains("--demo") {
+                self.usage.stop()
+                self.usage.useDemoSnapshot()
+            }
+            if CommandLine.arguments.contains("--dark") {
+                NSApp.appearance = NSAppearance(named: .darkAqua)
+            } else if CommandLine.arguments.contains("--light") {
+                NSApp.appearance = NSAppearance(named: .aqua)
+            }
+            #endif
             self.settle()
             // Handy while iterating on the window: `Kove --settings`.
             if CommandLine.arguments.contains("--settings") {

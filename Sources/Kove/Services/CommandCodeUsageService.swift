@@ -56,6 +56,35 @@ final class CommandCodeUsageService: ObservableObject, @unchecked Sendable {
         timer = nil
     }
 
+    #if DEBUG
+    /// Screenshot helper: shows plausible numbers instead of the real account's, so
+    /// captures can be published without exposing a balance.
+    func useDemoSnapshot() {
+        snapshot = Snapshot(
+            planName: "PRO",
+            periodEnd: Date().addingTimeInterval(60 * 60 * 24 * 12),
+            cancelsAtPeriodEnd: false,
+            fiveHour: WindowLimit(
+                used: 4.35,
+                cap: 14,
+                exceeded: false,
+                resetsAt: Date().addingTimeInterval(3.5 * 3600)
+            ),
+            weekly: WindowLimit(
+                used: 12.6,
+                cap: 35,
+                exceeded: false,
+                resetsAt: Date().addingTimeInterval(4 * 86400)
+            ),
+            creditsRemaining: 42.1,
+            requestCount: 1284,
+            successRate: 98.2,
+            updatedAt: Date()
+        )
+        state = .ready
+    }
+    #endif
+
     func refresh() {
         guard !isRefreshing else { return }
         isRefreshing = true
