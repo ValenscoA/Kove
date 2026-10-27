@@ -1,0 +1,70 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to label the DMG (e.g. 1.0)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-15
+    env:
+      # Optional: without these the DMG is signed ad-hoc and Gatekeeper will warn.
+      CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      CODESIGN_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import Developer ID certificate
+        if: env.CERT_P12 != ''
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Work out the version
+        id: version
+        run: |
+          RAW="${{ github.event.inputs.version }}"
+          if [ -z "$RAW" ]; then RAW="${GITHUB_REF_NAME#v}"; fi
+          if [ -z "$RAW" ] || [ "$RAW" = "main" ]; then RAW="0.0.0-dev"; fi
+          echo "value=$RAW" >> "$GITHUB_OUTPUT"
+          echo "Building $RAW"
+
+      - name: Build disk image
+        run: ./Tools/make-dmg.sh "${{ steps.version.outputs.value }}"
+
+      - name: Check Gatekeeper
+        run: spctl -a -vvv -t exec build/Kove.app || echo "::warning::App is not notarized; downloads will need a right-click Open."
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Kove ${{ steps.version.outputs.value }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.value) }}
+          draft: ${{ github.ref_type != 'tag' }}
+          generate_release_notes: true
+          files: |
+            build/Kove-*.dmg
+            build/Kove-*.dmg.sha256

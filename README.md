@@ -71,6 +71,20 @@ Settings, following the system appearance:
 | :---: | :---: |
 | <img src="docs/settings-light.png" width="420" alt="Settings in light appearance"> | <img src="docs/settings-dark.png" width="420" alt="Settings in dark appearance"> |
 
+## Download
+
+Grab the latest `Kove-<version>.dmg` from [Releases](https://github.com/ValenscoA/Kove/releases),
+open it and drag **Kove** into **Applications**.
+
+The image is ad-hoc signed, so the first launch is blocked by Gatekeeper — right-click
+the app → **Open**, or clear the quarantine flag once:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Kove.app
+```
+
+Prefer to build it yourself? See [Install](#install).
+
 ## Install
 
 Requires macOS 14 (Sonoma) or later and the Swift toolchain — Command Line Tools is
@@ -150,6 +164,26 @@ Sources/Kove/
 Tools/                                 icon and banner generators
 Resources/                             Info.plist, AppIcon.icns, menu bar glyph
 ```
+
+## Releasing
+
+```sh
+./Tools/make-dmg.sh 1.1          # build/Kove-1.1.dmg (+ .sha256), universal if Xcode is present
+git tag v1.1 && git push --tags  # CI builds the DMG and publishes a release
+```
+
+`Tools/make-dmg.sh` builds, signs, optionally notarizes, stages the app next to an
+`/Applications` symlink, and produces a compressed read-only image. Signing and
+notarization read these repository secrets (Settings → Secrets → Actions):
+
+| Secret | Purpose |
+| --- | --- |
+| `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | base64 Developer ID Application certificate |
+| `MACOS_SIGNING_IDENTITY` | e.g. `Developer ID Application: Name (TEAMID)` |
+| `APPLE_ID`, `APPLE_APP_PASSWORD`, `APPLE_TEAM_ID` | notarization via `notarytool` |
+
+Without them the image is ad-hoc signed, which is fine locally but means every
+download needs a right-click **Open**.
 
 ## License
 
