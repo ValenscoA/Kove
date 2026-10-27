@@ -21,6 +21,10 @@ echo "==> Building Kove ${VERSION}"
 # Universal (arm64 + x86_64) when Xcode is available; native otherwise.
 ./build.sh release --universal >/dev/null
 
+echo "==> Stamping version ${VERSION}"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION//[!0-9]/}" "$APP/Contents/Info.plist" 2>/dev/null || true
+
 echo "==> Signing ($IDENTITY)"
 if [ "$IDENTITY" = "-" ]; then
     codesign --force --sign - "$APP"
