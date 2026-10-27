@@ -363,7 +363,7 @@ func renderSheet(to path: String) {
 
 /// Template images are drawn as a mask: black pixels are opaque, everything else
 /// is clear, and macOS tints them for light/dark menu bars.
-func templateGlyph(pixels: Int, tint: NSColor = .black) -> NSBitmapImageRep {
+func templateGlyph(pixels: Int) -> NSBitmapImageRep {
     let (rep, ctx) = makeContext(pixels: pixels)
     let scale = CGFloat(pixels) / 36
 
@@ -376,7 +376,7 @@ func templateGlyph(pixels: Int, tint: NSColor = .black) -> NSBitmapImageRep {
         bottomRadius: 3 * scale
     )
 
-    ctx.setFillColor(tint.cgColor)
+    ctx.setFillColor(NSColor.black.cgColor)
     ctx.addPath(glyph)
     ctx.fillPath()
 
@@ -426,46 +426,6 @@ for base in [16, 32, 128, 256, 512] {
         try! data.write(to: iconset.appendingPathComponent("icon_\(base)x\(base)\(suffix).png"))
     }
 }
-
-// Windows: one .ico for the app, one per tray theme (Windows does not tint
-// template images, so the glyph has to be drawn in the right colour).
-func writeICO(_ sizes: [Int], make: (Int) -> NSBitmapImageRep, to path: String) {
-    let images = sizes.map(make)
-    let datas = images.compactMap { $0.representation(using: .png, properties: [:]) }
-
-    var out = Data([0, 0, 1, 0])
-    let count = UInt16(datas.count)
-    out.append(contentsOf: [UInt8(count & 0xFF), UInt8(count >> 8)])
-
-    var offset = 6 + 16 * datas.count
-    for (image, data) in zip(images, datas) {
-        let width = image.pixelsWide
-        let height = image.pixelsHigh
-        out.append(UInt8(width >= 256 ? 0 : width))
-        out.append(UInt8(height >= 256 ? 0 : height))
-        out.append(contentsOf: [0, 0, 1, 0, 32, 0])
-        for value in [UInt32(data.count), UInt32(offset)] {
-            out.append(contentsOf: [
-                UInt8(value & 0xFF),
-                UInt8((value >> 8) & 0xFF),
-                UInt8((value >> 16) & 0xFF),
-                UInt8((value >> 24) & 0xFF)
-            ])
-        }
-        offset += data.count
-    }
-    for data in datas { out.append(data) }
-
-    try! out.write(to: URL(fileURLWithPath: path))
-    print("wrote \(path)")
-}
-
-writeICO([16, 32, 48, 64, 128, 256], make: { scaled(icon, pixels: $0) },
-         to: resources.appendingPathComponent("AppIcon.ico").path)
-writeICO([16, 20, 24, 32, 40, 48], make: { templateGlyph(pixels: $0, tint: .black) },
-         to: resources.appendingPathComponent("TrayIcon-Black.ico").path)
-writeICO([16, 20, 24, 32, 40, 48], make: { templateGlyph(pixels: $0, tint: .white) },
-         to: resources.appendingPathComponent("TrayIcon-White.ico").path)
 
 let iconutil = Process()
 iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
