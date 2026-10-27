@@ -8,11 +8,11 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show toolchain
+      - name: Show toolchain   # macos-15 ships Xcode 16 / Swift 6
         run: swift --version
 
       - name: Build (release)
