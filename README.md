@@ -186,6 +186,14 @@ notarization read these repository secrets (Settings → Secrets → Actions):
 Without them the image is ad-hoc signed, which is fine locally but means every
 download needs a right-click **Open**.
 
+## Windows
+
+There is no Windows build yet. [`PORTING.md`](PORTING.md) is a complete port spec:
+the platform mapping (SMTC instead of Apple Events, `SHQueryUserNotificationState`
+instead of window-server queries), the geometry and timing constants to match, and
+an acceptance checklist. `Resources/` already holds `AppIcon.ico` and the
+black/white tray icons for it.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
