@@ -58,7 +58,7 @@ drawn from code, not hand-exported:
 
 ```sh
 swift Tools/MakeIcon.swift      # Resources/AppIcon.icns|.ico + StatusIcon*/TrayIcon*
-swift Tools/MakeBanner.swift    # docs/banner.png
+swift Tools/MakeBanner.swift    # docs/banner.png, or --vertical for the story-size one
 ```
 
 ## Screenshots
