@@ -299,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// track stays expandable so playback can be resumed from the island.
     private var canExpandIsland: Bool {
         guard controller.hasEnabledSource else { return false }
-        if controller.mode == .music { return media.hasTrack }
+        if controller.mode == .music { return media.hasTrack || media.permissionDenied }
         return true
     }
 
@@ -356,11 +356,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Music mode only exists to surface the current track, so no track at all
-        // (Music stopped, quit, or never started) means nothing on screen. Paused
+        // (player stopped, quit, or never started) means nothing on screen. Paused
         // still counts as a track: the pill stays put so playback can be resumed
-        // from it. Collapse first so playback resumes to the pill instead of an
-        // expanded panel the user left open.
-        if !media.hasTrack, controller.mode == .music {
+        // from it. A denied Automation prompt is the exception — staying visible is
+        // the only way the user finds out why the island went quiet.
+        if !media.hasTrack, !media.permissionDenied, controller.mode == .music {
             cleanTicks = 0
             controller.setExpanded(false)
             hidePanel()
