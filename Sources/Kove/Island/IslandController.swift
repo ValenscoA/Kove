@@ -94,6 +94,9 @@ final class IslandController: ObservableObject {
 
     func setExpanded(_ value: Bool) {
         guard isExpanded != value else { return }
+        #if DEBUG
+        FileHandle.standardError.write(Data("[kove] setExpanded(\(value))\n".utf8))
+        #endif
         isExpanded = value
     }
 

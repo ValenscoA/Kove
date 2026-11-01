@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindowController!
     private var playbackCancellable: AnyCancellable?
     private var modeCancellable: AnyCancellable?
+    private var expansionCancellable: AnyCancellable?
+    /// Delayed shrink after a collapse, so the panel cannot clip the closing animation.
+    private var resizeWork: DispatchWorkItem?
     private var sourceCancellable: AnyCancellable?
     private var fullScreenCancellable: AnyCancellable?
 
@@ -128,6 +131,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.settle()
             }
 
+        // The panel *is* the island, so it has to change size with it. Growing happens
+        // immediately (the content animates into a larger window, so nothing clips);
+        // shrinking waits for the collapse animation to finish first.
+        expansionCancellable = controller.$isExpanded
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] expanded in
+                guard let self else { return }
+                if expanded {
+                    // `@Published` fires before the property changes, so the emitted value
+                    // is the one to lay out with; reading `controller.isExpanded` here
+                    // would still return the old size.
+                    self.layout(expanded: true)
+                } else {
+                    self.resizeAfterCollapse()
+                }
+            }
+
         playbackCancellable = media.$isPlaying
             .removeDuplicates()
             .dropFirst()
@@ -174,6 +195,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if CommandLine.arguments.contains("--media-probe") {
                 self.probeMediaPlayers()
+            }
+            if CommandLine.arguments.contains("--auto-collapse") {
+                // Exercises the collapse path, including the delayed panel shrink.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    self.controller.setExpanded(true)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                    self.controller.setExpanded(false)
+                }
             }
             if CommandLine.arguments.contains("--demo") {
                 self.usage.stop()
@@ -430,19 +460,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Repositions the panel only — it never changes whether the panel is on
     /// screen. Screen-parameter changes arrive in the middle of full-screen
     /// transitions, so anything that shows the panel here re-introduces the flash.
-    private func layout() {
+    private func layout(expanded: Bool? = nil) {
         guard let screen = IslandController.preferredScreen() else { return }
         controller.adopt(screen: screen)
 
-        let width = controller.expandedSize.width + 96
-        let height = controller.expandedSize.height + 92
+        // The panel is exactly the island. A window that is larger would keep receiving
+        // clicks across its whole rectangle, even where it draws nothing: returning nil
+        // from hit testing only stops our own views reacting, it does not pass the click
+        // on to whatever is behind. So the window must never be bigger than the pill.
+        let isExpanded = expanded ?? controller.isExpanded
+        let size = isExpanded ? controller.expandedSize : controller.collapsedSize
         let frame = CGRect(
-            x: controller.islandCenterX - width / 2,
-            y: screen.frame.maxY - height,
-            width: width,
-            height: height
+            x: controller.islandCenterX - size.width / 2,
+            y: screen.frame.maxY - size.height,
+            width: size.width,
+            height: size.height
         )
 
         panel.setFrame(frame, display: panelState != .hidden)
+    }
+
+    /// Shrinking immediately would clip the island while it animates closed, so the panel
+    /// keeps its size until the animation has settled. Re-expanding in the meantime
+    /// cancels this and is handled by `layout()`.
+    private func resizeAfterCollapse() {
+        resizeWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.controller.isExpanded else { return }
+            self.layout()
+        }
+        resizeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
     }
 }

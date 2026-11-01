@@ -154,6 +154,7 @@ Debug builds accept a few extra launch arguments while iterating:
 .build/debug/Kove --settings [--dark|--light]    # open Settings, forcing an appearance
 .build/debug/Kove --render-settings out.png      # render Settings offscreen to a PNG
 .build/debug/Kove --media-probe                  # print what each player reports
+.build/debug/Kove --auto-collapse                # expand, then collapse, to test resizing
 ```
 
 ## Project layout
