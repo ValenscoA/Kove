@@ -3,6 +3,7 @@ import SwiftUI
 struct IslandView: View {
     @ObservedObject var controller: IslandController
     @ObservedObject var media: MediaService
+    @ObservedObject var lyrics: LyricsService
     @ObservedObject var usage: CommandCodeUsageService
 
     private var expanded: Bool { controller.isExpanded }
@@ -36,6 +37,7 @@ struct IslandView: View {
             if expanded {
                 ExpandedView(
                     media: media,
+                    lyrics: lyrics,
                     usage: usage,
                     mode: controller.mode,
                     enabledSources: controller.enabledSources,

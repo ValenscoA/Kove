@@ -77,6 +77,15 @@ struct IslandPreviewCard: View {
         switch active {
         case .music:
             ArtworkThumb(image: nil, size: 20, corner: 5.5)
+        case .lyrics:
+            ZStack {
+                RoundedRectangle(cornerRadius: 5.5, style: .continuous)
+                    .fill(Color.white.opacity(0.10))
+                Image(systemName: "text.quote")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.85))
+            }
+            .frame(width: 20, height: 20)
         case .commandCode:
             ZStack {
                 RoundedRectangle(cornerRadius: 5.5, style: .continuous)
@@ -116,7 +125,9 @@ struct IslandPreviewCard: View {
         case (true, _):
             return "Island hidden"
         case (false, .music?):
-            return "Music"
+            return "Now Playing"
+        case (false, .lyrics?):
+            return "Lyrics"
         case (false, .commandCode?):
             return "Command Code Usage"
         case (false, nil):

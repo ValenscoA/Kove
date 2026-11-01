@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ExpandedView: View {
     @ObservedObject var media: MediaService
+    @ObservedObject var lyrics: LyricsService
     @ObservedObject var usage: CommandCodeUsageService
     let mode: IslandMode
     /// Sources enabled in the menu bar; the switcher only offers these.
@@ -18,6 +19,8 @@ struct ExpandedView: View {
                 switch mode {
                 case .music:
                     MediaSection(media: media)
+                case .lyrics:
+                    LyricsView(lyrics: lyrics)
                 case .commandCode:
                     CommandCodeUsageView(usage: usage)
                 }
@@ -46,7 +49,9 @@ struct ExpandedView: View {
     private var headerTitle: String {
         switch mode {
         case .music:
-            media.hasTrack ? "NOW PLAYING" : "MUSIC"
+            media.hasTrack ? "NOW PLAYING" : "PLAYBACK"
+        case .lyrics:
+            "LYRICS"
         case .commandCode:
             "COMMAND CODE"
         }

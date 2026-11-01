@@ -3,12 +3,14 @@ import Combine
 
 enum IslandMode: String, CaseIterable {
     case music
+    case lyrics
     case commandCode
 
     /// Label used by the menu bar submenu.
     var title: String {
         switch self {
         case .music: return "Now Playing"
+        case .lyrics: return "Lyrics"
         case .commandCode: return "Command Code Usage"
         }
     }
@@ -17,6 +19,7 @@ enum IslandMode: String, CaseIterable {
     var symbolName: String {
         switch self {
         case .music: return "music.note"
+        case .lyrics: return "text.quote"
         case .commandCode: return "chart.bar.xaxis"
         }
     }
@@ -24,6 +27,7 @@ enum IslandMode: String, CaseIterable {
     var helpText: String {
         switch self {
         case .music: return "Show what's playing, from any player"
+        case .lyrics: return "Show timed lyrics for the current track"
         case .commandCode: return "Show Command Code usage"
         }
     }

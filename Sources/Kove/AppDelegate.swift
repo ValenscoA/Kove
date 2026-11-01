@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var controller: IslandController!
     private var media: MediaService!
+    private var lyrics: LyricsService!
     private var usage: CommandCodeUsageService!
     private var panel: IslandPanel!
     private var container: IslandContainerView!
@@ -14,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var playbackCancellable: AnyCancellable?
     private var modeCancellable: AnyCancellable?
     private var expansionCancellable: AnyCancellable?
+    private var trackCancellable: AnyCancellable?
+    private var lyricsTimer: Timer?
     /// Delayed shrink after a collapse, so the panel cannot clip the closing animation.
     private var resizeWork: DispatchWorkItem?
     private var sourceCancellable: AnyCancellable?
@@ -45,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         media = MediaService()
+        lyrics = LyricsService()
         usage = CommandCodeUsageService()
         controller = IslandController(preferences: preferences)
 
@@ -55,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         container.autoresizingMask = [.width, .height]
 
         let hosting = IslandHostingView(
-            rootView: IslandView(controller: controller, media: media, usage: usage)
+            rootView: IslandView(controller: controller, media: media, lyrics: lyrics, usage: usage)
         )
         hosting.sizingOptions = []
         hosting.translatesAutoresizingMaskIntoConstraints = false
@@ -149,6 +153,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
 
+        // Lyrics are only fetched when they are on screen: no network traffic for a
+        // source the user never opens.
+        trackCancellable = media.$track
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] track in
+                guard let self, self.controller.mode == .lyrics else { return }
+                self.lyrics.load(Self.lyricsRequest(for: track))
+            }
+
         playbackCancellable = media.$isPlaying
             .removeDuplicates()
             .dropFirst()
@@ -182,6 +196,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.settle() }
 
+        let ticker = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+            guard let self, self.controller.mode == .lyrics else { return }
+            self.lyrics.update(position: self.media.position)
+        }
+        RunLoop.main.add(ticker, forMode: .common)
+        lyricsTimer = ticker
+
         // Login items launch while the desktop is still fading in from the login
         // window, and anything ordered in during that fade sits on top of it.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -195,6 +216,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if CommandLine.arguments.contains("--media-probe") {
                 self.probeMediaPlayers()
+            }
+            if CommandLine.arguments.contains("--demo-track") {
+                self.media.useDemoTrack()
+            }
+            if CommandLine.arguments.contains("--lyrics-probe") {
+                self.probeLyrics()
             }
             if CommandLine.arguments.contains("--auto-collapse") {
                 // Exercises the collapse path, including the delayed panel shrink.
@@ -233,6 +260,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         usage.stop()
         settleTimer?.invalidate()
         watchdogTimer?.invalidate()
+        lyricsTimer?.invalidate()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
@@ -252,6 +280,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: Visibility
 
     #if DEBUG
+    /// Dev helper: fetches lyrics for a fixed track, prints the parse and the line chosen
+    /// at several positions, then exits. `Kove --lyrics-probe`
+    private func probeLyrics() {
+        func log(_ text: String) {
+            FileHandle.standardError.write(Data((text + "\n").utf8))
+        }
+
+        // Optional override: KOVE_LYRICS_PROBE="artist|title|album|duration"
+        var request = LyricsService.Request(title: "Yellow", artist: "Coldplay", album: "Parachutes", duration: 267)
+        if let raw = ProcessInfo.processInfo.environment["KOVE_LYRICS_PROBE"] {
+            let parts = raw.components(separatedBy: "|")
+            request = LyricsService.Request(
+                title: parts.count > 1 ? parts[1] : raw,
+                artist: parts.first ?? "",
+                album: parts.count > 2 ? parts[2] : "",
+                duration: parts.count > 3 ? Double(parts[3]) ?? 0 : 0
+            )
+        }
+
+        let service = LyricsService()
+        service.load(request)
+
+        // Long enough for a 503 retry to settle.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+            log("[lyrics] state=\(service.state) synced=\(service.isSynced) lines=\(service.lines.count) drift=\(service.timingMayDrift)")
+            for line in service.lines.prefix(3) {
+                log(String(format: "   %7.2f  %@", line.time, line.text))
+            }
+            for position in [30.0, 52.0, 120.0] {
+                service.update(position: position)
+                if let index = service.activeIndex {
+                    log("   at \(Int(position))s -> line \(index): \(service.lines[index].text)")
+                } else {
+                    log("   at \(Int(position))s -> no line yet")
+                }
+            }
+            exit(0)
+        }
+    }
+
     /// Dev helper: prints what each player reports, then exits.
     /// `Kove --media-probe` — the quickest way to tell a permission problem from a
     /// player that simply is not playing.
@@ -329,8 +397,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// track stays expandable so playback can be resumed from the island.
     private var canExpandIsland: Bool {
         guard controller.hasEnabledSource else { return false }
-        if controller.mode == .music { return media.hasTrack || media.permissionDenied }
-        return true
+        switch controller.mode {
+        case .music: return media.hasTrack || media.permissionDenied
+        case .lyrics: return media.hasTrack
+        case .commandCode: return true
+        }
+    }
+
+    private static func lyricsRequest(for track: TrackInfo?) -> LyricsService.Request? {
+        guard let track else { return nil }
+        return LyricsService.Request(
+            title: track.title,
+            artist: track.artist,
+            album: track.album,
+            duration: track.duration
+        )
     }
 
     private func startWatchdog() {
@@ -390,6 +471,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // still counts as a track: the pill stays put so playback can be resumed
         // from it. A denied Automation prompt is the exception — staying visible is
         // the only way the user finds out why the island went quiet.
+        if !media.hasTrack, controller.mode == .lyrics {
+            cleanTicks = 0
+            controller.setExpanded(false)
+            hidePanel()
+            return
+        }
+
         if !media.hasTrack, !media.permissionDenied, controller.mode == .music {
             cleanTicks = 0
             controller.setExpanded(false)

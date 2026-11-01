@@ -38,6 +38,15 @@ struct SettingsView: View {
                 SettingsDivider()
 
                 SettingsRow(
+                    symbol: IslandMode.lyrics.symbolName,
+                    title: IslandMode.lyrics.title,
+                    subtitle: "Timed lyrics for the current track, when a timing exists.",
+                    isOn: sourceBinding(.lyrics)
+                )
+
+                SettingsDivider()
+
+                SettingsRow(
                     symbol: IslandMode.commandCode.symbolName,
                     title: IslandMode.commandCode.title,
                     subtitle: "Session and weekly credit usage for Command Code.",

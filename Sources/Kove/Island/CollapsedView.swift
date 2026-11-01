@@ -17,11 +17,24 @@ struct CollapsedView: View {
 
     @ViewBuilder
     private var leadingWing: some View {
-        if mode == .commandCode {
-            usageWing
-        } else {
-            artwork
+        switch mode {
+        case .commandCode: usageWing
+        case .lyrics: lyricsWing
+        case .music: artwork
         }
+    }
+
+    /// Three text lines, which is what the panel shows one line larger.
+    private var lyricsWing: some View {
+        VStack(alignment: .leading, spacing: 2.5) {
+            ForEach([1.0, 0.62, 0.82], id: \.self) { width in
+                Capsule()
+                    .fill(Color.white.opacity(0.72))
+                    .frame(width: 12 * width, height: 2)
+            }
+        }
+        .frame(width: 20, height: 20)
+        .frame(width: 28, alignment: .leading)
     }
 
     private var usageWing: some View {

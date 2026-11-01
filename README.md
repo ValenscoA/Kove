@@ -41,6 +41,13 @@ from it, and each player's own change notification (`com.apple.Music.playerInfo`
 play puts the island on screen in a fraction of a second. A lazy poll (1.8–2.5 s)
 stays as the backstop.
 
+**Lyrics, timed.** A third source shows the current line centred and bright, with two
+lines either side dimmed, advancing as the track plays. Timing comes from LRCLIB, which
+needs no key; the highlight is driven by the same interpolated position as the progress
+bar, so a seek moves it immediately and a pause freezes it. Tracks with only plain text
+are shown without a highlight, and a version mismatch says "timing may be off" rather
+than pretending the sync is exact.
+
 **Command Code usage.** Session (5 h) and weekly credit windows, credits remaining,
 reset countdowns, request and success counts, fetched from the Command Code billing
 API every 60 s, and only while that source is on screen.
@@ -129,6 +136,10 @@ Privacy & Security › Automation.
   `osascript` out of process so a stalled player can never block the UI, picks the
   active player, interpolates the position between polls, and downsamples artwork off
   the main thread.
+- **Lyrics** (`Services/LyricsService.swift`) is platform neutral on purpose: it takes
+  artist, title, album and duration, and returns lines. LRCLIB's exact lookup answers 503
+  rather than 404 when the duration misses, so a failed lookup falls back to search and
+  picks the closest runtime, flagging the gap.
 - **Usage** (`Services/CommandCodeUsageService.swift`) talks to
   `api.commandcode.ai` with the key from `COMMAND_CODE_API_KEY` or
   `~/.commandcode/auth.json` (written by `cmd login`).
@@ -143,7 +154,7 @@ defaults domain:
 
 | Key | Meaning |
 | --- | --- |
-| `enabledIslandSources` | Which sources may appear (`music` = now playing, `commandCode`) |
+| `enabledIslandSources` | Which sources may appear (`music` = now playing, `lyrics`, `commandCode`) |
 | `islandMode` | Which source is currently on screen |
 | `hideOverFullScreen` | Step aside for full-screen apps |
 
@@ -154,6 +165,8 @@ Debug builds accept a few extra launch arguments while iterating:
 .build/debug/Kove --settings [--dark|--light]    # open Settings, forcing an appearance
 .build/debug/Kove --render-settings out.png      # render Settings offscreen to a PNG
 .build/debug/Kove --media-probe                  # print what each player reports
+.build/debug/Kove --lyrics-probe                 # fetch, parse and index one track's lyrics
+.build/debug/Kove --demo-track                   # a fixed track, so the panel can be captured
 .build/debug/Kove --auto-collapse                # expand, then collapse, to test resizing
 ```
 
@@ -173,6 +186,7 @@ Sources/Kove/
 ├── Settings/                          preferences window + live island preview
 └── Services/
     ├── Media/                         MediaPlayer adapters (Music, Spotify) + MediaService
+    ├── LyricsService.swift            LRCLIB lookup, LRC parsing, cache
     ├── AppleScriptRunner.swift         runs osascript out of process
     └── CommandCodeUsageService.swift  usage over HTTPS
 Tools/                                 icon and banner generators

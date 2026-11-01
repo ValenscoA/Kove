@@ -49,6 +49,10 @@ final class MediaService: ObservableObject {
     private var notificationObservers: [NSObjectProtocol] = []
     private var workspaceObservers: [NSObjectProtocol] = []
     private var notificationRefresh: DispatchWorkItem?
+    #if DEBUG
+    /// Screenshot helper: a fixed track at a fixed position, with polling suspended.
+    private var demoMode = false
+    #endif
 
     init(players: [MediaPlayer] = [AppleMusicPlayer(), SpotifyPlayer()]) {
         self.players = players
@@ -92,6 +96,9 @@ final class MediaService: ObservableObject {
 
     private func performPoll() {
         guard isActive else { return }
+        #if DEBUG
+        guard !demoMode else { return }
+        #endif
 
         // A notification-driven refresh may already have a timer pending; drop it so
         // one change never queues a second round trip.
@@ -188,6 +195,23 @@ final class MediaService: ObservableObject {
         seeking = false
         anchorPosition = 0
     }
+
+    #if DEBUG
+    func useDemoTrack() {
+        demoMode = true
+        isPlayerRunning = true
+        isPlaying = false
+        track = TrackInfo(
+            title: "Yellow",
+            artist: "Coldplay",
+            album: "Parachutes",
+            duration: 267,
+            persistentID: "demo-yellow"
+        )
+        anchorPosition = 52
+        anchorDate = Date()
+    }
+    #endif
 
     // MARK: Change notifications
 
